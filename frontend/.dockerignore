@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Development files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs
+
+# Dependencies
+node_modules
+
+# Build artifacts
+dist
+build
+
+# Test files
+tests
+test
+*.test.js
+
+# Coverage
+coverage
+
+# Development tools
+Makefile
+
+# Vite
+vite.config.js.timestamp-*

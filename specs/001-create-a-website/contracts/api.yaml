@@ -1,0 +1,969 @@
+openapi: 3.0.3
+info:
+  title: Rental Property Management API
+  description: API for managing rental properties and investment analysis
+  version: 1.0.0
+  contact:
+    name: Development Team
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+  - url: https://api.property-mgmt.com/v1
+    description: Production server
+
+paths:
+  # Authentication endpoints
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: User registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, first_name, last_name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                first_name:
+                  type: string
+                  maxLength: 50
+                last_name:
+                  type: string
+                  maxLength: 50
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+
+  # Property endpoints
+  /properties:
+    get:
+      tags: [Properties]
+      summary: Get user's properties
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_at, purchase_price, cap_rate]
+            default: created_at
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Properties retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  properties:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PropertySummary'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+
+    post:
+      tags: [Properties]
+      summary: Create new property
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyCreate'
+      responses:
+        '201':
+          description: Property created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Property'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /properties/{id}:
+    get:
+      tags: [Properties]
+      summary: Get property details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Property details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Properties]
+      summary: Update property
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyUpdate'
+      responses:
+        '200':
+          description: Property updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Property'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Properties]
+      summary: Delete property
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Property deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Property metrics endpoint
+  /properties/{id}/metrics:
+    get:
+      tags: [Properties]
+      summary: Get property financial metrics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Financial metrics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialMetrics'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Properties]
+      summary: Recalculate property metrics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Metrics recalculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialMetrics'
+
+  # Property valuations endpoint
+  /properties/{id}/valuations:
+    get:
+      tags: [Valuations]
+      summary: Get property valuations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Valuations retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PropertyValuation'
+
+    post:
+      tags: [Valuations]
+      summary: Add property valuation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyValuationCreate'
+      responses:
+        '201':
+          description: Valuation added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyValuation'
+
+  # Comments endpoints
+  /properties/{id}/comments:
+    get:
+      tags: [Comments]
+      summary: Get property comments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Comments retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+
+    post:
+      tags: [Comments]
+      summary: Add property comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  maxLength: 2000
+                parent_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+
+  /comments/{id}:
+    put:
+      tags: [Comments]
+      summary: Update comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+
+    delete:
+      tags: [Comments]
+      summary: Delete comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Comment deleted successfully
+
+  # Buying box criteria endpoints
+  /buying-criteria:
+    get:
+      tags: [BuyingCriteria]
+      summary: Get user's buying criteria
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Buying criteria retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BuyingBoxCriteria'
+
+    post:
+      tags: [BuyingCriteria]
+      summary: Create buying criteria
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuyingBoxCriteriaCreate'
+      responses:
+        '201':
+          description: Buying criteria created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuyingBoxCriteria'
+
+  /buying-criteria/{id}:
+    put:
+      tags: [BuyingCriteria]
+      summary: Update buying criteria
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuyingBoxCriteriaUpdate'
+      responses:
+        '200':
+          description: Buying criteria updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuyingBoxCriteria'
+
+    delete:
+      tags: [BuyingCriteria]
+      summary: Delete buying criteria
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Buying criteria deleted
+
+  # Property comparison endpoint
+  /properties/compare:
+    post:
+      tags: [Properties]
+      summary: Compare properties against buying criteria
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [property_ids, criteria_id]
+              properties:
+                property_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                criteria_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Property comparison results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PropertyComparison'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+
+    PropertySummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+        purchase_price:
+          type: number
+          format: decimal
+        cap_rate:
+          type: number
+          format: decimal
+        cash_on_cash_return:
+          type: number
+          format: decimal
+        created_at:
+          type: string
+          format: date-time
+
+    Property:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        address:
+          type: string
+        year_built:
+          type: integer
+        land_area_sqft:
+          type: integer
+        building_area_sqft:
+          type: integer
+        purchase_price:
+          type: number
+          format: decimal
+        intended_rent:
+          type: number
+          format: decimal
+        operating_expenses:
+          type: object
+        financing_terms:
+          type: object
+        operating_assumptions:
+          type: object
+        local_context:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PropertyDetail:
+      allOf:
+        - $ref: '#/components/schemas/Property'
+        - type: object
+          properties:
+            metrics:
+              $ref: '#/components/schemas/FinancialMetrics'
+            valuations:
+              type: array
+              items:
+                $ref: '#/components/schemas/PropertyValuation'
+            comments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Comment'
+
+    PropertyCreate:
+      type: object
+      required: [address, purchase_price]
+      properties:
+        address:
+          type: string
+          maxLength: 255
+        year_built:
+          type: integer
+          minimum: 1800
+        land_area_sqft:
+          type: integer
+          minimum: 1
+        building_area_sqft:
+          type: integer
+          minimum: 1
+        purchase_price:
+          type: number
+          format: decimal
+          minimum: 0.01
+        intended_rent:
+          type: number
+          format: decimal
+          minimum: 0
+        operating_expenses:
+          type: object
+        financing_terms:
+          type: object
+        operating_assumptions:
+          type: object
+        local_context:
+          type: object
+
+    PropertyUpdate:
+      type: object
+      properties:
+        address:
+          type: string
+          maxLength: 255
+        year_built:
+          type: integer
+          minimum: 1800
+        land_area_sqft:
+          type: integer
+          minimum: 1
+        building_area_sqft:
+          type: integer
+          minimum: 1
+        purchase_price:
+          type: number
+          format: decimal
+          minimum: 0.01
+        intended_rent:
+          type: number
+          format: decimal
+          minimum: 0
+        operating_expenses:
+          type: object
+        financing_terms:
+          type: object
+        operating_assumptions:
+          type: object
+        local_context:
+          type: object
+
+    FinancialMetrics:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        monthly_mortgage_payment:
+          type: number
+          format: decimal
+        net_operating_income:
+          type: number
+          format: decimal
+        cap_rate:
+          type: number
+          format: decimal
+        cash_on_cash_return:
+          type: number
+          format: decimal
+        cash_to_close:
+          type: number
+          format: decimal
+        rent_to_value_ratio:
+          type: number
+          format: decimal
+        gross_rent_multiplier:
+          type: number
+          format: decimal
+        calculated_at:
+          type: string
+          format: date-time
+        is_current:
+          type: boolean
+
+    PropertyValuation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [Zillow, Redfin, Rentimate]
+        valuation_type:
+          type: string
+          enum: [market_value, rental_estimate]
+        value:
+          type: number
+          format: decimal
+        valuation_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+
+    PropertyValuationCreate:
+      type: object
+      required: [source, valuation_type, value]
+      properties:
+        source:
+          type: string
+          enum: [Zillow, Redfin, Rentimate]
+        valuation_type:
+          type: string
+          enum: [market_value, rental_estimate]
+        value:
+          type: number
+          format: decimal
+          minimum: 0.01
+        valuation_date:
+          type: string
+          format: date
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        user_name:
+          type: string
+        content:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BuyingBoxCriteria:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        min_cap_rate:
+          type: number
+          format: decimal
+        min_cash_on_cash:
+          type: number
+          format: decimal
+        max_purchase_price:
+          type: number
+          format: decimal
+        min_rent_to_value:
+          type: number
+          format: decimal
+        max_year_built:
+          type: integer
+        min_year_built:
+          type: integer
+        location_preferences:
+          type: object
+        property_type_preferences:
+          type: object
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BuyingBoxCriteriaCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        min_cap_rate:
+          type: number
+          format: decimal
+          minimum: 0
+        min_cash_on_cash:
+          type: number
+          format: decimal
+          minimum: 0
+        max_purchase_price:
+          type: number
+          format: decimal
+          minimum: 0.01
+        min_rent_to_value:
+          type: number
+          format: decimal
+          minimum: 0
+        max_year_built:
+          type: integer
+        min_year_built:
+          type: integer
+        location_preferences:
+          type: object
+        property_type_preferences:
+          type: object
+
+    BuyingBoxCriteriaUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        min_cap_rate:
+          type: number
+          format: decimal
+          minimum: 0
+        min_cash_on_cash:
+          type: number
+          format: decimal
+          minimum: 0
+        max_purchase_price:
+          type: number
+          format: decimal
+          minimum: 0.01
+        min_rent_to_value:
+          type: number
+          format: decimal
+          minimum: 0
+        max_year_built:
+          type: integer
+        min_year_built:
+          type: integer
+        location_preferences:
+          type: object
+        property_type_preferences:
+          type: object
+        is_active:
+          type: boolean
+
+    PropertyComparison:
+      type: object
+      properties:
+        property:
+          $ref: '#/components/schemas/PropertySummary'
+        criteria_match:
+          type: object
+          properties:
+            overall_score:
+              type: number
+              format: decimal
+            meets_criteria:
+              type: boolean
+            details:
+              type: object
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized access
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Development files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs
+
+# Dependencies
+node_modules
+
+# Test files
+tests
+*_test.go
+testdata
+
+# Build artifacts
+tmp
+dist
+build
+
+# Air
+.air.toml
+
+# Coverage
+coverage.out
+*.coverage
+
+# Development tools
+Makefile
